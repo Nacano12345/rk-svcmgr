@@ -1,0 +1,16 @@
+# svcmgr instance DB
+#
+# <name> <binary> <config> [extra-args...]
+#
+# A leading '*' on <name> means:
+#   - autostart at boot
+#   - auto-restart if the process dies (supervision)
+#
+# The program is always launched as:  <binary> -c <config> [extra-args...]
+
+# frp client, two instances with different configs
+*frpc-main  /usr/local/bin/frpc           /etc/svcmgr/frpc/main.toml
+frpc-alt    /usr/local/bin/frpc           /etc/svcmgr/frpc/alt.toml
+
+# EasyTier, supervised
+*et-main    /usr/local/bin/easytier-core  /etc/svcmgr/easytier/main.toml
