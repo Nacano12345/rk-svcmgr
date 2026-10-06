@@ -60,6 +60,7 @@ frpc-alt    /usr/local/bin/frpc           /etc/svcmgr/frpc/alt.toml
 - 启动命令固定为：`<binary> -c <config> [extra-args...]`。
 - 名称前加 `*` = **开机自启 + 崩溃自动重启**（每约 3 秒检查一次）。
 - 每实例日志：`<dir>/<name>.log`；pid：`<pid-dir>/<name>.pid`。
+- 若某程序**不接受 `-c`**，写个两行的 wrapper 脚本当 `<binary>` 即可（脚本内自行解析 `$2` 等）。
 
 ## HTTP API
 
@@ -88,6 +89,26 @@ frpc-alt    /usr/local/bin/frpc           /etc/svcmgr/frpc/alt.toml
 - systemd：见 `contrib/svcmgr.service`
 - sysvinit/BusyBox：见 `contrib/S60svcmgr.sh`
 - OpenWrt：可直接用上述脚本配合 `/etc/rc.local` 或 procd（自行封装）。
+
+## 嵌入到网页（HTTPS 反代）
+
+把 svcmgr 嵌进一个 **HTTPS 页面**时，浏览器会以“混合内容”为由拦截对明文 `http://host:8083`
+的请求。解决办法是在同一个 TLS 站点里把 `/svcmgr/*` **同源反代**到 svcmgr（Caddy 示例）：
+
+```
+https://example.com {
+    handle_path /svcmgr/* {
+        reverse_proxy 127.0.0.1:8083
+    }
+}
+```
+
+前端即可用 `https://example.com/svcmgr/api/list?token=...` 访问（同源、无跨域）。
+
+## 相关项目
+
+- [**RK-KVM**](https://github.com/Nacano12345/RK-KVM) —— 本项目即从其维护后台抽出的通用组件；
+  其“服务管理”标签可直接把 svcmgr 作为栏目管理（本地或远程 + API Token）。
 
 ## 安全提示
 
