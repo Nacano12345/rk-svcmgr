@@ -1,3 +1,5 @@
+[English](README.en.md) | 中文
+
 # rk-svcmgr
 
 一个**极小的多实例服务/进程管理器**，单文件、零第三方依赖，自带 HTTP API 与内嵌网页控制台。
