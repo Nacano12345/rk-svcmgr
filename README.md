@@ -2,15 +2,16 @@
 
 # rk-svcmgr
 
-一个**极小的多实例服务/进程管理器**，单文件、零第三方依赖，自带 HTTP API 与内嵌网页控制台。
+轻量级多实例服务/进程管理器。单文件实现，无第三方依赖，内置 HTTP API 与网页控制台。
 
-适合管理那些「`程序 -c 配置文件`」形式的常驻服务（例如 frpc、easytier 等）：
-- 记录**软件路径 + 配置文件**，一键启动 / 停止 / **重启**；
-- 同一程序挂**多份配置**跑多实例；
-- 在网页/API 里直接编辑配置文件、看日志；
-- 可选**守护**：开机自启 + 进程崩溃后自动拉起。
+适用于以「程序 -c 配置文件」形式运行的服务（如 frpc、easytier）：
 
-项目源自 [RK-KVM](https://github.com/Nacano12345/RK-KVM) 的维护后台，抽出为通用工具。
+- 记录程序路径与配置文件，支持启动、停止与重启。
+- 同一程序可挂载多份配置，以多实例方式运行。
+- 可在网页或 API 中直接编辑配置文件、查看日志。
+- 可选守护：开机自启，并在进程崩溃后自动重启。
+
+本项目由 RK-KVM 的维护后台抽出，作为通用工具使用。
 
 ## 构建
 
@@ -34,21 +35,22 @@ sudo make install PREFIX=/usr/local
 svcmgr --dir /etc/svcmgr --port 8083
 ```
 
-打开 `http://<ip>:8083/?token=<token>`，token 在 `<dir>/token`（首次运行自动生成）。
+打开 `http://<ip>:8083/?token=<token>`，令牌位于 `<dir>/token`（首次运行时自动生成）。
 
 ### 命令行选项
 
-| 选项 | 说明 | 默认 |
+| 选项 | 说明 | 默认值 |
 |---|---|---|
-| `-d, --dir PATH` | 数据目录（配置/令牌/日志） | `/userdata/services` |
+| `-d, --dir PATH` | 数据目录（配置、令牌、日志） | `/userdata/services` |
 | `-c, --conf PATH` | 实例库文件 | `<dir>/services.conf` |
-| `--token-file PATH` | API 令牌文件（不存在则生成） | `<dir>/token` |
-| `-p, --port N` | 监听端口 | `8083` |
-| `-b, --bind ADDR` | 监听地址 | `0.0.0.0` |
+| `--token-file PATH` | API 令牌文件（不存在时创建） | `<dir>/token` |
+| `-p, --port N` | HTTP 监听端口 | `8083` |
+| `-b, --bind ADDR` | HTTP 监听地址 | `0.0.0.0` |
 | `--pid-dir PATH` | pid 文件目录 | `/run/svcmgr` |
 | `-h, --help` / `-v, --version` | | |
 
-也支持环境变量：`SVCMGR_DIR` `SVCMGR_CONF` `SVCMGR_TOKEN_FILE` `SVCMGR_PORT` `SVCMGR_BIND` `SVCMGR_PID_DIR`。
+亦支持环境变量：`SVCMGR_DIR`、`SVCMGR_CONF`、`SVCMGR_TOKEN_FILE`、`SVCMGR_PORT`、`SVCMGR_BIND`、
+`SVCMGR_PID_DIR`。
 
 ## 实例库 `<dir>/services.conf`
 
@@ -59,19 +61,19 @@ frpc-alt    /usr/local/bin/frpc           /etc/svcmgr/frpc/alt.toml
 *et-main    /usr/local/bin/easytier-core  /etc/svcmgr/easytier/main.toml
 ```
 
-- 启动命令固定为：`<binary> -c <config> [extra-args...]`。
-- 名称前加 `*` = **开机自启 + 崩溃自动重启**（每约 3 秒检查一次）。
-- 每实例日志：`<dir>/<name>.log`；pid：`<pid-dir>/<name>.pid`。
-- 若某程序**不接受 `-c`**，写个两行的 wrapper 脚本当 `<binary>` 即可（脚本内自行解析 `$2` 等）。
+- 启动命令固定为 `<binary> -c <config> [extra-args...]`。
+- 名称前加 `*` 表示开机自启并在崩溃后自动重启（约每 3 秒检查一次）。
+- 实例日志：`<dir>/<name>.log`；pid：`<pid-dir>/<name>.pid`。
+- 若程序不接受 `-c`，可编写一个简单的包装脚本作为 `<binary>`，在脚本内自行解析参数。
 
 ## HTTP API
 
-鉴权：查询参数 `?token=<token>` 或请求头 `X-Token: <token>`。
+鉴权方式：查询参数 `?token=<token>`，或请求头 `X-Token: <token>`。
 
 | 方法 | 路径 | 说明 |
 |---|---|---|
-| GET | `/` | 内嵌网页控制台 |
-| GET | `/api/ping` | 返回 `pong`（同时校验 token） |
+| GET | `/` | 内置网页控制台 |
+| GET | `/api/ping` | 返回 `pong`（同时校验令牌） |
 | GET | `/api/list` | JSON：`[{name,bin,config,running,pid,auto}]` |
 | GET | `/api/status?name=` | `running pid=N` / `stopped pid=0` |
 | GET | `/api/start?name=` | 启动 |
@@ -80,22 +82,22 @@ frpc-alt    /usr/local/bin/frpc           /etc/svcmgr/frpc/alt.toml
 | GET | `/api/log?name=` | 日志尾部（文本） |
 | GET | `/api/config?name=` | 读取配置 |
 | POST | `/api/config?name=` | 写入配置（body 为内容） |
-| POST | `/api/add?name=&bin=&config=` | 新增实例（`name` 加 `*` 前缀=守护） |
+| POST | `/api/add?name=&bin=&config=` | 新增实例（name 加 `*` 前缀表示守护） |
 | GET | `/api/del?name=` | 删除实例 |
 | POST | `/api/conf` | 整体替换实例库（body） |
 
-跨域：所有响应带 `Access-Control-Allow-Origin: *`，便于被其它网页（如 RK-KVM 后台）直接调用。
+跨域：所有响应均带 `Access-Control-Allow-Origin: *`，可供其它网页（如 RK-KVM 后台）直接调用。
 
 ## 开机自启
 
-- systemd：见 `contrib/svcmgr.service`
-- sysvinit/BusyBox：见 `contrib/S60svcmgr.sh`
-- OpenWrt：可直接用上述脚本配合 `/etc/rc.local` 或 procd（自行封装）。
+- systemd：见 `contrib/svcmgr.service`。
+- sysvinit/BusyBox：见 `contrib/S60svcmgr.sh`。
+- OpenWrt：可配合上述脚本与 `/etc/rc.local` 或 procd 使用。
 
-## 嵌入到网页（HTTPS 反代）
+## 嵌入网页（HTTPS 反向代理）
 
-把 svcmgr 嵌进一个 **HTTPS 页面**时，浏览器会以“混合内容”为由拦截对明文 `http://host:8083`
-的请求。解决办法是在同一个 TLS 站点里把 `/svcmgr/*` **同源反代**到 svcmgr（Caddy 示例）：
+将 svcmgr 嵌入 HTTPS 页面时，浏览器会以混合内容为由拦截对明文 `http://host:8083` 的请求。
+解决方法是在同一 TLS 站点内，将 `/svcmgr/*` 同源反代至 svcmgr（Caddy 示例）：
 
 ```
 https://example.com {
@@ -105,19 +107,20 @@ https://example.com {
 }
 ```
 
-前端即可用 `https://example.com/svcmgr/api/list?token=...` 访问（同源、无跨域）。
+前端随后可使用 `https://example.com/svcmgr/api/list?token=...` 访问（同源，无跨域）。
 
 ## 相关项目
 
-- [**RK-KVM**](https://github.com/Nacano12345/RK-KVM) —— 本项目即从其维护后台抽出的通用组件；
-  其“服务管理”标签可直接把 svcmgr 作为栏目管理（本地或远程 + API Token）。
+- [RK-KVM](https://github.com/Nacano12345/RK-KVM)：本组件即由其维护后台抽出；其“服务管理”标签可将
+  svcmgr 实例作为栏目管理（本地或远程加 API Token）。
 
-## 安全提示
+## 安全说明
 
-- 令牌即密码，保存在 `<dir>/token`（权限 `0600`）。泄露后删除该文件重启即可重生成。
-- 默认绑定 `0.0.0.0`。若不需对外，建议 `--bind 127.0.0.1` 并用反向代理（带 TLS）暴露；**令牌会出现在 URL 查询串中**，请勿经不可信网络明文传输。
-- 服务以当前用户权限运行；若以 root 运行，受管程序亦即 root，请谨慎。
+- 令牌即口令，保存在 `<dir>/token`（权限 `0600`）。若泄露，删除该文件并重启即可重新生成。
+- 默认绑定 `0.0.0.0`。若无对外需要，建议使用 `--bind 127.0.0.1`，并通过反向代理（带 TLS）暴露。
+  令牌会出现在 URL 查询串中，请勿在不可信网络上明文传输。
+- 程序以当前用户权限运行；若以 root 运行，受管程序亦以 root 运行。
 
-## License
+## 许可
 
 [MIT](LICENSE) © 2026 Nacano12345
