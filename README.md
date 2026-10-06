@@ -97,4 +97,4 @@ frpc-alt    /usr/local/bin/frpc           /etc/svcmgr/frpc/alt.toml
 
 ## License
 
-暂未授权（All rights reserved）。如需开源请先确定许可证。
+[MIT](LICENSE) © 2026 Nacano12345
